@@ -1,0 +1,811 @@
+---
+title: "Initial EDA - 136 farms"
+author: "A T Chamberlain"
+date: "2024-07-24"
+output: word_document
+---
+
+# NOTES
+# 24 July - increased from 105 to 136 herds - these are all routine HPRs from Emma 
+# 25 July - start sensible outlier checking - have removed 6+9 for BF + culling = 5% 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# set up libraries required installing them first if need be. - do I need all of these 
+if(!require("tidyverse")) install.packages("tidyverse")
+if(!require("plotly")) install.packages("plotly")
+if(!require("lubridate")) install.packages("lubridate") # date handling 
+if(!require("Hmisc")) install.packages("Hmisc")
+if(!require("hms")) install.packages("hms") 
+if(!require("robustbase")) install.packages("robustbase") 
+if(!require("matrixStats")) install.packages("matrixStats") 
+if(!require("openxlsx")) install.packages("openxlsx") 
+if(!require("broom")) install.packages("broom") 
+if(!require("PerformanceAnalytics")) install.packages("PerformanceAnalytics") 
+if(!require("Hmisc")) install.packages("Hmisc")
+
+# clear out any current variables etc
+rm(list = ls())
+
+```
+
+```{r load data, echo=FALSE}
+
+setwd("C:/ATC_data/HPRs/Paper_Eric_OEE+LCA")
+getwd()
+
+data = read_csv("C:/ATC_data/HPRs/Paper_Eric_OEE+LCA/data_conversion_LCA_HPR_to_R24July24_136herds.csv")
+
+
+#data_conversion_LCA_HPR_toR_24July_136herds.csv = read.table("C:/ATC_data/HPRs/Paper_Eric_OEE+LCA/data_conversion_LCA_HPR_to_R24July24_136herds.csv", header=TRUE, quote="\"", na.strings="#N/A")
+
+# identify herd that want to select to pull out in graphics for enteric CH4 eCO2 kg/kg
+# Herds
+# 1 HAU Main
+# 2 HAU AMS
+# 3 MaGo
+# 4 PrSt CBA
+# 5 StWe MVF
+# 6 minCH4eCO2   K & I  MILLAR & SONS CIS 42645
+# 7 maxCH4eCO2   W J WILSON CIS 12315 
+
+farmNumber = 1
+
+if (farmNumber == 1) {farmName = "HAU_main"}
+if (farmNumber == 2) {farmName = "HAU_AMS"}
+if (farmNumber == 3) {farmName = "MaGo"}
+if (farmNumber == 4) {farmName = "PrSt CBA"}
+if (farmNumber == 5) {farmName = "StWe MVF"}
+if (farmNumber == 100) {farmName = "Max CH4 eCO2 12315"}
+if (farmNumber == 119) {farmName = "Min CH4 eCO2 42645"}
+  
+print("Herd number")
+print(farmNumber)
+print("Herd Name")
+print(farmName)
+print("Herd ID")
+print(data$farmID[farmNumber])
+
+# sort out some missing data in case they exist 
+# check class and only doing those where class = chr 
+
+missingStrings = c("N/A", "NA", "na", "#N/A", "nan", "#VALUE!", "#NAME?" )
+
+if (is.character(data$Cull_L6) == "TRUE") {
+  temp = as.character(data$Cull_L6)
+  temp = parse_number(temp,na = missingStrings)
+  data$Cull_L6 = as.double(temp) 
+}
+
+if (is.character(data$Cull_L6over) == "TRUE") {
+  temp = as.character(data$Cull_L6over)
+  temp = parse_number(temp,na = missingStrings)
+  data$Cull_L6over = as.double(temp) 
+}
+
+
+```
+
+
+
+```{r 1st EDA, echo=FALSE}
+ # some initial EDA 
+# fill = "darkseagreen", colour = "darkslategrey"
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$annualMY[farmNumber]
+ypoint = 7
+
+# create the percentile distribution
+percentile = ecdf(data$annualMY)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=annualMY))+
+  geom_histogram(binwidth =250,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Annual milk yield (kg/cow/year)", 
+        title = "EDA - spread of milk yields",
+        subtitle = "136 herds - as at 24July24",
+        caption = result ) + 
+         geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.03,
+    y=ypoint*1.2,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$annualMY[farmNumber])
+
+summary(data$annualMY)
+
+min(data$annualMY)
+max(data$annualMY)
+
+minHerd = which.min(data$annualMY)
+maxHerd = which.max(data$annualMY)
+
+data$farmID[minHerd] 
+data$farmID[maxHerd] 
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$herdSize[farmNumber]
+ypoint = 10
+
+# create the percentile distribution
+percentile = ecdf(data$herdSize)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=herdSize))+
+  geom_histogram(binwidth =50 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Cows in herd", 
+        title = "EDA - herd size",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) +
+          geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$herdSize[farmNumber])
+
+summary(data$herdSize)
+
+# find the highest and lowest values 
+# sort into a temp dataframe
+tempData = data[order(data$herdSize),]
+# look at top and bottom 
+# head(tempData,10)
+# tail(tempData)
+
+```
+
+```{r 1st EDA - milk composition, echo=FALSE}
+
+# Look to see if any should be excluded as probably not Fr/Hol
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$BFAnnualAvg[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$BFAnnualAvg)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+
+p = ggplot(data, aes(x=BFAnnualAvg))+
+  geom_histogram(binwidth =.1 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Annual average BF(%)", 
+        title = "EDA - Butter fat",
+        subtitle = "136 herds - as at 24July24",
+        caption = result)+
+           geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$BFAnnualAvg[farmNumber])
+
+summary(data$BFAnnualAvg)
+
+# find the highest and lowest values 
+# sort into a temp dataframe
+tempData = data[order(data$BFAnnualAvg),]
+# head(tempData,10)
+# tail(tempData,10)
+
+# ACTION - exclude all herds where BF > 5% 
+
+data = data[data$BFAnnualAvg < 5.0 , ]
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$FPcorrfactor[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$FPcorrfactor)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=FPcorrfactor))+
+  geom_histogram(binwidth =.025 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = " FP Corr factor", 
+        title = "EDA - FP Corr factor",
+        subtitle = "136 herds - as at 24July24",
+        caption = result)+
+           geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.1,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+plot(p)
+
+print ("Value for this herd :")
+print(data$FPcorrfactor[farmNumber])
+
+summary(data$FPcorrfactor)
+
+# are Corr value and BF related? 
+
+ggplot(data, aes(x=BFAnnualAvg, y=FPcorrfactor))+
+  geom_point(size = 2)
+
+cor(data$BFAnnualAvg,data$FPcorrfactor)
+
+# they are very related - reject herds with BF over 5% as probably not Fr/Hol
+
+```
+# look at distribution of the main driving KPI's - excl MY - is any trimming needed? 
+
+```{r main KPIs EDA, echo=FALSE}
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$AAFC[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$AAFC)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=AAFC))+
+  geom_histogram(binwidth =14 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Age at first calving (days)", 
+        title = "AAFC - days",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) +
+           geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$AAFC[farmNumber])
+
+summary(data$AAFC)
+# find the highest and lowest values 
+# sort into a temp dataframe
+tempData = data[order(data$AAFC),]
+# look at top and bottom 
+#head(tempData,10)
+#tail(tempData,10)
+
+
+
+# convert to months 
+data$AAFCMonths = data$AAFC/30.4
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$AAFCMonths[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$AAFCMonths)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=AAFCMonths))+
+  geom_histogram(binwidth =.25 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Age at first calving (months)", 
+        title = "AAFC - months",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) +
+           geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$AAFCMonths[farmNumber])
+
+summary(data$AAFCMonths)
+# find the highest and lowest values 
+# sort into a temp dataframe
+tempData = data[order(data$AAFCMonths),]
+# look at top and bottom 
+#head(tempData,10)
+#tail(tempData,10)
+
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$CI[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$CI)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+
+p = ggplot(data, aes(x=CI))+
+  geom_histogram(binwidth =5 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Calving Interval (days)", 
+        title = "Calving Interval",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) + 
+          geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+plot(p)
+
+print ("Value for this herd :")
+print(data$CI[farmNumber])
+
+summary(data$CI)
+tempData = data[order(data$CI),]
+# look at top and bottom 
+#head(tempData,10)
+#tail(tempData,10)
+
+
+# culling
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$culling[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$culling)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=culling))+
+  geom_histogram(binwidth =5 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "culling (% of herd)", 
+        title = "Culling rate (% of herd/year)",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) +
+            geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.3,
+    y=ypoint*1.5,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+
+plot(p)
+print ("Value for this herd :")
+print(data$culling[farmNumber])
+
+summary(data$culling)
+# find the highest and lowest values 
+# sort into a temp dataframe
+tempData = data[order(data$culling),]
+# look at top and bottom 
+#head(tempData,10)
+#tail(tempData,10)
+
+# ACTION - exclude all herds where culling rate is over 50% 
+
+data = data[data$culling < 50 , ]
+
+# Average lactation number when leave herd
+
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$avLactOnLeaving[farmNumber]
+ypoint = 7
+# create the percentile distribution
+percentile = ecdf(data$avLactOnLeaving)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=avLactOnLeaving))+
+  geom_histogram(binwidth =0.25 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "Average lactation number when leave herd", 
+        title = "Average lactation number when leave herd",
+        subtitle = "136 herds - as at 24July24",
+        caption = result) + 
+            geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.13,
+    y=ypoint*1.35,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque")
+plot(p)
+
+print ("Value for this herd :")
+print(data$avLactOnLeaving[farmNumber])
+
+summary(data$avLactOnLeaving)
+
+tempData = data[order(data$avLactOnLeaving),]
+# look at top and bottom 
+#head(tempData,10)
+#tail(tempData,10)
+
+# finally just look at culling rate cf lactNo at culling 
+
+plot(data$culling,data$avLactOnLeaving)
+cor(data$culling,data$avLactOnLeaving)
+
+
+```
+
+# finally look at distribution of eCO2 / kg FP Corr milk  
+
+
+
+```{r Enteric methane EDA, echo=FALSE}
+# pull out data point for a specific herd - here is is herd 1 which is HAU
+xpoint = data$`eCO2 kg/kg FPCM`[farmNumber]
+ypoint = 12
+
+# create the percentile distribution
+percentile = ecdf(data$`eCO2 kg/kg FPCM`)
+# where does farm 1 lie on this distribution
+m = 100* percentile(xpoint)
+ # is.integer(m)
+m = round(m+0.5,0)
+m = as.integer(m)
+ # is.integer(m)
+m = as.character(m)
+# using paste() to concatenate two strings
+result = paste("Percent of herds in dataset that have a value lower than this farm = ", m)
+
+p = ggplot(data, aes(x=`eCO2 kg/kg FPCM`))+
+  geom_histogram(binwidth =0.025 ,fill = "cadetblue1", colour = "deepskyblue4" )+
+      labs(y = "herds", 
+        x = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime)",
+        subtitle = "136 herds - as at 24July24",
+        # caption = "HPR LCA v05 24Jul24 data" )
+        caption = result ) +
+        geom_point(aes(x=xpoint,y=ypoint), color="blue", size = 5)  +
+     geom_label(
+    label=farmName, 
+    x=xpoint*1.03,
+    y=ypoint*1.2,
+    label.padding = unit(0.55, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "bisque4",
+    fill="bisque"
+  )
+
+plot(p)
+
+print ("Value for this herd :")
+print(data$`eCO2 kg/kg FPCM`[farmNumber])
+
+summary(data$`eCO2 kg/kg FPCM`)
+
+```
+SUMMARY - have deleted 6 herds as they looked like Channel Island breed and 9 herds as culling rate was too high due to TB culls, selling down-calved heifers, or downsizing / closing up / retiring. 
+
+Find out who are highest and lowest emitters
+
+```{r min and max CH4 eCO2, echo=FALSE}
+
+min(data$`eCO2 kg/kg FPCM`)
+max(data$`eCO2 kg/kg FPCM`)
+
+minCH4eCO2 = which.min(data$`eCO2 kg/kg FPCM`)
+maxCH4eCO2 = which.max(data$`eCO2 kg/kg FPCM`)
+
+data$farmID[minCH4eCO2] # K & I  MILLAR & SONS CIS 42645
+data$farmID[maxCH4eCO2] # W J WILSON CIS 12315 
+
+```
+
+Finally - in EDA - look at some simple regressions 
+
+```{r simple regressions}
+
+# milk yield 
+
+p = ggplot(data, aes(x=annualMYFPCM, y=`eCO2 kg/kg FPCM`))+
+  geom_point(size = 2) +
+     labs(x = "Annual milk yield", 
+        y = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime) cf milk yield",
+        subtitle = "136 herds - as at 24July24",
+        caption = "HPR LCA v05 24Jul24 data" )
+        # caption = result ) 
+
+plot(p)
+
+corr = cor(data$annualMYFPCM,data$`eCO2 kg/kg FPCM`)
+
+print (corr)
+
+# regression 
+
+model = lm(`eCO2 kg/kg FPCM`~ annualMYFPCM,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+#Assumptions made when fitting the regression look valid
+
+# as it is such a strong effect (R2 = 0.75) should be be looking to model the residuals on the other factors 
+
+# AAFC
+
+p = ggplot(data, aes(x=AAFCMonths, y=`eCO2 kg/kg FPCM`))+
+  geom_point(size = 2) +
+     labs(x = "Age at first calving (months)", 
+        y = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime) cf milk yield",
+        subtitle = "136 herds - as at 24July24",
+        caption = "HPR LCA v05 24Jul24 data" )
+ 
+
+plot(p)
+
+corr = cor(data$AAFCMonths,data$`eCO2 kg/kg FPCM`)
+
+print (corr)
+
+# regression - AAFC
+
+model = lm(`eCO2 kg/kg FPCM`~ AAFCMonths,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+# AAFC has a significant effect but variation accounted for is small at 15% 
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+# CI days
+
+p = ggplot(data, aes(x=CI, y=`eCO2 kg/kg FPCM`))+
+  geom_point(size = 2) +
+     labs(x = "CI (days)", 
+        y = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime) cf milk yield",
+        subtitle = "136 herds - as at 24July24",
+        caption = "HPR LCA v05 24Jul24 data" )
+ 
+
+plot(p)
+
+corr = cor(data$CI,data$`eCO2 kg/kg FPCM`)
+
+print (corr)
+
+# regression 
+
+model = lm(`eCO2 kg/kg FPCM`~ CI,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+# the slope - effect of CI - is not signif different from zero
+
+# culling 
+
+p = ggplot(data, aes(x=culling, y=`eCO2 kg/kg FPCM`))+
+  geom_point(size = 2) +
+     labs(x = "Annual culling (%)", 
+        y = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime) cf milk yield",
+        subtitle = "136 herds - as at 24July24",
+        caption = "HPR LCA v05 24Jul24 data" )
+ 
+
+plot(p)
+
+corr = cor(data$culling,data$`eCO2 kg/kg FPCM`)
+
+print (corr)
+
+# regression 
+
+model = lm(`eCO2 kg/kg FPCM`~ culling,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+# not looking hopeful but need to remove the outlier(s) first 
+
+# lact number at culling 
+
+p = ggplot(data, aes(x=avLactOnLeaving, y=`eCO2 kg/kg FPCM`))+
+  geom_point(size = 2) +
+     labs(x = "Average lactation number when culled", 
+        y = "kg eCO2 from enteric methane per kg milk (over lifetime) ?GWP100", 
+        title = "kg eCO2 from enteric methane per kg milk (over lifetime) cf milk yield",
+        subtitle = "136 herds - as at 24July24",
+        caption = "HPR LCA v05 24Jul24 data" )
+ 
+
+plot(p)
+
+corr = cor(data$avLactOnLeaving,data$`eCO2 kg/kg FPCM`)
+
+print (corr)
+
+# multiple regression 
+
+model = lm(`eCO2 kg/kg FPCM`~ + avLactOnLeaving,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+# finally all together 
+
+model = lm(`eCO2 kg/kg FPCM`~ annualMYFPCM + AAFCMonths + CI + avLactOnLeaving + culling ,data = data)
+
+summary(model)
+
+print (tidy(model))
+
+par(mfrow = c(2, 2))
+plot(model)
+par(mfrow = c(1, 1))
+
+# now get a model that explains 87% of variance and all components are significant. 
+
+# correlation matrix 
+# select the variables wanted 
+
+dataSelected = data[,c("farmID","eCO2 kg/kg FPCM","annualMY","annualMYFPCM","AAFCMonths","CI" , "avLactOnLeaving" , "culling")]
+
+
+
+res = cor(dataSelected)
+round(res, 2)
+
+res2 = rcorr(as.matrix(dataSelected))
+res2
+
+p = chart.Correlation(dataSelected, histogram=TRUE, pch=19)
+
+# finally save the data as a R dataset
+
+save(data,file = "C:/ATC_data/HPRs/Paper_Eric_OEE+LCA/data_25July24_121herds")
+save(dataSelected,file = "C:/ATC_data/HPRs/Paper_Eric_OEE+LCA/data_25July24_121herds_selected")
+
+```
+
+This is not the same as sensitivity analysis which I would do with the model I have 
+
+. Find an 'average herd' or typical herd - how? 
+.. normalise each variable and express as SND's then look for the herd with the combined / average min absolute SND. 
+
+. set all variables into model at the average values 
+. vary one at a time to the decile values 
+
+identify several 'typical' herds and so sens analysis on each herd and look at difference in results. 
+
